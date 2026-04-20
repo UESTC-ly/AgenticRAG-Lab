@@ -1,0 +1,7 @@
+# Optional dependencies for real embedding / reranker / LLM components.
+# The core project stays zero-dependency; install these only when using --real.
+sentence-transformers>=3.0.0
+# numpy is a transitive dependency of sentence-transformers, pinned here for clarity.
+numpy>=1.26
+# Ollama is a separate service (brew install ollama / ollama pull qwen2.5:7b),
+# not a Python package. Python talks to it over HTTP via stdlib urllib.

@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.pytest_cache/
+.coverage
+dist/
+build/
+
+# Environment
+.venv/
+venv/
+.env
+.env.local
+
+# OS
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+
+# Claude Code / local dev state
+.claude/
+.omx/
+
+# Data
+data/raw/
+data/product/
+
+# Backup slices
+data/processed/**/*.bak
+data/processed/**/*.jsonl.bak
+
+# Per-case prediction dumps (large, reproducible from benchmark scripts)
+data/processed/hotpotqa/e2e_predictions_*.jsonl
+
+# Private / resume-oriented docs (not for public repo)
+doc/INTERVIEW_50_QA.md
+doc/RESUME_OPTIMIZATION.md
+doc/RESUME_PROJECT.md

@@ -1,0 +1,175 @@
+{
+  "slice_path": "data/processed/hotpotqa/dev_slice.jsonl",
+  "case_count": 500,
+  "corpus_document_count": 4858,
+  "embedding_model": "BAAI/bge-small-en-v1.5",
+  "reranker_model": null,
+  "top_ks": [
+    1,
+    3,
+    5,
+    10
+  ],
+  "rows": [
+    {
+      "method": "lexical",
+      "top_k": 1,
+      "case_count": 500,
+      "supporting_doc_recall": 0.138,
+      "all_supporting_docs_hit_rate": 0.0,
+      "any_supporting_doc_hit_rate": 0.276
+    },
+    {
+      "method": "semantic-rule",
+      "top_k": 1,
+      "case_count": 500,
+      "supporting_doc_recall": 0.307,
+      "all_supporting_docs_hit_rate": 0.0,
+      "any_supporting_doc_hit_rate": 0.614
+    },
+    {
+      "method": "hybrid-rule",
+      "top_k": 1,
+      "case_count": 500,
+      "supporting_doc_recall": 0.181,
+      "all_supporting_docs_hit_rate": 0.0,
+      "any_supporting_doc_hit_rate": 0.362
+    },
+    {
+      "method": "semantic-bge",
+      "top_k": 1,
+      "case_count": 500,
+      "supporting_doc_recall": 0.459,
+      "all_supporting_docs_hit_rate": 0.0,
+      "any_supporting_doc_hit_rate": 0.918
+    },
+    {
+      "method": "hybrid-bge",
+      "top_k": 1,
+      "case_count": 500,
+      "supporting_doc_recall": 0.218,
+      "all_supporting_docs_hit_rate": 0.0,
+      "any_supporting_doc_hit_rate": 0.436
+    },
+    {
+      "method": "lexical",
+      "top_k": 3,
+      "case_count": 500,
+      "supporting_doc_recall": 0.345,
+      "all_supporting_docs_hit_rate": 0.13,
+      "any_supporting_doc_hit_rate": 0.56
+    },
+    {
+      "method": "semantic-rule",
+      "top_k": 3,
+      "case_count": 500,
+      "supporting_doc_recall": 0.526,
+      "all_supporting_docs_hit_rate": 0.248,
+      "any_supporting_doc_hit_rate": 0.804
+    },
+    {
+      "method": "hybrid-rule",
+      "top_k": 3,
+      "case_count": 500,
+      "supporting_doc_recall": 0.425,
+      "all_supporting_docs_hit_rate": 0.186,
+      "any_supporting_doc_hit_rate": 0.664
+    },
+    {
+      "method": "semantic-bge",
+      "top_k": 3,
+      "case_count": 500,
+      "supporting_doc_recall": 0.858,
+      "all_supporting_docs_hit_rate": 0.74,
+      "any_supporting_doc_hit_rate": 0.976
+    },
+    {
+      "method": "hybrid-bge",
+      "top_k": 3,
+      "case_count": 500,
+      "supporting_doc_recall": 0.497,
+      "all_supporting_docs_hit_rate": 0.252,
+      "any_supporting_doc_hit_rate": 0.742
+    },
+    {
+      "method": "lexical",
+      "top_k": 5,
+      "case_count": 500,
+      "supporting_doc_recall": 0.459,
+      "all_supporting_docs_hit_rate": 0.226,
+      "any_supporting_doc_hit_rate": 0.692
+    },
+    {
+      "method": "semantic-rule",
+      "top_k": 5,
+      "case_count": 500,
+      "supporting_doc_recall": 0.63,
+      "all_supporting_docs_hit_rate": 0.372,
+      "any_supporting_doc_hit_rate": 0.888
+    },
+    {
+      "method": "hybrid-rule",
+      "top_k": 5,
+      "case_count": 500,
+      "supporting_doc_recall": 0.549,
+      "all_supporting_docs_hit_rate": 0.302,
+      "any_supporting_doc_hit_rate": 0.796
+    },
+    {
+      "method": "semantic-bge",
+      "top_k": 5,
+      "case_count": 500,
+      "supporting_doc_recall": 0.896,
+      "all_supporting_docs_hit_rate": 0.798,
+      "any_supporting_doc_hit_rate": 0.994
+    },
+    {
+      "method": "hybrid-bge",
+      "top_k": 5,
+      "case_count": 500,
+      "supporting_doc_recall": 0.659,
+      "all_supporting_docs_hit_rate": 0.444,
+      "any_supporting_doc_hit_rate": 0.874
+    },
+    {
+      "method": "lexical",
+      "top_k": 10,
+      "case_count": 500,
+      "supporting_doc_recall": 0.675,
+      "all_supporting_docs_hit_rate": 0.466,
+      "any_supporting_doc_hit_rate": 0.884
+    },
+    {
+      "method": "semantic-rule",
+      "top_k": 10,
+      "case_count": 500,
+      "supporting_doc_recall": 0.779,
+      "all_supporting_docs_hit_rate": 0.6,
+      "any_supporting_doc_hit_rate": 0.958
+    },
+    {
+      "method": "hybrid-rule",
+      "top_k": 10,
+      "case_count": 500,
+      "supporting_doc_recall": 0.749,
+      "all_supporting_docs_hit_rate": 0.556,
+      "any_supporting_doc_hit_rate": 0.942
+    },
+    {
+      "method": "semantic-bge",
+      "top_k": 10,
+      "case_count": 500,
+      "supporting_doc_recall": 0.948,
+      "all_supporting_docs_hit_rate": 0.9,
+      "any_supporting_doc_hit_rate": 0.996
+    },
+    {
+      "method": "hybrid-bge",
+      "top_k": 10,
+      "case_count": 500,
+      "supporting_doc_recall": 0.85,
+      "all_supporting_docs_hit_rate": 0.714,
+      "any_supporting_doc_hit_rate": 0.986
+    }
+  ]
+}
