@@ -1,5 +1,13 @@
 import unittest
 
+try:
+    import numpy as np  # noqa: F401
+except ImportError as exc:  # pragma: no cover
+    raise unittest.SkipTest(
+        "numpy not available; install requirements-real.txt to enable "
+        "EmbeddingSemanticRetriever tests."
+    ) from exc
+
 from agentic_rag_lab.models import Document
 from agentic_rag_lab.retrieval.embedding_semantic import EmbeddingSemanticRetriever
 
