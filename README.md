@@ -119,15 +119,24 @@ KMP_DUPLICATE_LIB_OK=TRUE PYTHONPATH=src python3 scripts/run_hotpotqa_real_ablat
 
 ## Benchmark 核心结果
 
-在 HotpotQA dev 500 样本上的 `all_supporting_docs_hit_rate@5`(含所有金证据全部被召回的比例):
+**Retrieval** (HotpotQA dev, `all_supporting_docs_hit_rate@5`):
 
 | 配置 | @5 all-hit |
 |---|---|
-| hybrid-rule(规则版 baseline) | 0.302 |
-| semantic-bge(bge-small-en-v1.5) | 0.798 |
-| hybrid-bge-rerank(+ bge-reranker-base, 100 样本) | **0.930** |
+| hybrid-rule (规则版 baseline, 500 样本) | 0.302 |
+| semantic-bge (bge-small-en-v1.5, 500 样本) | 0.798 |
+| hybrid-bge-rerank (+ bge-reranker-base, 100 样本) | **0.930** |
 
-详见 `doc/BENCHMARK_RESULTS.md`。
+**End-to-End** (HotpotQA dev 20 样本, Ollama `gemma4:e2b`):
+
+| 配置 | F1 | Citation Rate |
+|---|---|---|
+| rule-retr + rule-synth (baseline) | 0.085 | 1.000 |
+| real-retr + rule-synth | 0.100 | 1.000 |
+| rule-retr + llm-synth | 0.250 | 0.350 |
+| **real-retr + llm-synth** | **0.434** | **0.850** |
+
+完整分析见 `doc/BENCHMARK_RESULTS.md`;RRF 退化发现的技术博客见 `doc/BLOG_RRF_RETROGRADE.md`。
 
 ## HotpotQA Slice
 

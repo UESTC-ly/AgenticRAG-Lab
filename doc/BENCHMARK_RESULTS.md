@@ -63,6 +63,44 @@
 
 ---
 
+## 运行 3: 端到端 EM / F1 / Citation (20 样本, 4 配置)
+
+- **数据**: `dev_slice_rerank100.jsonl` 前 20 条(970 corpus passages)
+- **LLM**: 本地 Ollama `gemma4:e2b` (5.1B)
+- **耗时**: ~8 分钟
+
+### 结果
+
+| Configuration | EM | F1 | Citation | Avg Latency (s) |
+|---|---|---|---|---|
+| rule-retr + rule-synth | 0.050 | 0.085 | 1.000 | 0.01 |
+| real-retr + rule-synth | 0.050 | 0.100 | 1.000 | 1.03 |
+| rule-retr + llm-synth | 0.050 | 0.250 | 0.350 | 9.99 |
+| **real-retr + llm-synth** | 0.000 | **0.434** | **0.850** | 10.84 |
+
+### 乘性效应(E2E 最核心发现)
+
+| 升级路径 | F1 增量 |
+|---|---|
+| 只升级 retrieval(rule→real) | +0.015 |
+| 只升级 synthesizer(rule→LLM) | +0.165 |
+| 两者同时升级 | **+0.349** |
+
+两个独立升级增量之和 +0.180,联合升级实际增量 +0.349,约 **2 倍**。这是 RAG 架构典型的乘性效应: 差 retrieval 喂 LLM 只能让它说 "I don't know",好 retrieval 配差 synth 浪费证据。
+
+### Citation rate 的真实信号
+
+规则版 synth 无脑贴 citation(只要有候选都返回),citation_rate 恒为 1.0,**无信息量**。LLM 版 citation 是**诚实的**:
+
+- 差 retrieval 下 LLM 答 "I don't know" → citation = 0.350(多数拒答)
+- 好 retrieval 下 LLM 给出有根据的答案 → citation = 0.850(高 ground 率)
+
+### EM = 0 是格式问题,不是质量问题
+
+LLM 输出带 `[1][2]` citation 后缀(如 `"yes [1][2]"`),tokenize 后不等于参考 "yes",EM 归零。token F1 能穿透这个问题(分子 = 共有 token)。让 EM 更公平需要在评测时剥离 citation markers,这是下个版本 TODO。
+
+---
+
 ## 核心结论 (面试金句)
 
 ### 1. 真实 embedding 贡献最大
@@ -100,15 +138,22 @@ Baseline `hybrid-rule @5` 的 all-hit **0.302** → `semantic-bge @5` 的 **0.79
 **可讲**:
 > @10 的 all-hit 接近 100%,说明后续提升空间已经从检索转到生成。下一步做 LLM synthesizer 优化会是更高 ROI。
 
+### 5. 检索 × 生成的乘性效应
+
+E2E F1 从 0.085(全 rule)到 0.434(全 real);单独升 retrieval 只 +0.015,单独升 synth +0.165,联合 +0.349。
+
+**可讲**:
+> 独立升级两个组件的增量加起来远小于联合升级的实际增量。这说明 retrieval 和 synth 是 RAG 里互为瓶颈的双向依赖:检索差 LLM 只能拒答,检索好但 synth 差又浪费证据。工程上意味着单点突破很难大幅 end-to-end 翻盘,要两端同时投入。
+
 ---
 
 ## 简历一句话版本
 
 > 在 HotpotQA dev 500 样本上完整消融 BM25 / bge-small / bge-reranker-base 三段式
 > retrieval;`all_supporting_docs_hit_rate@5` 从 **0.302** 的规则版 baseline 提升到
-> **0.930**(+62 个百分点),验证了 bi-encoder + cross-encoder 两阶段检索在多跳 QA
-> 上的必要性。并发现 RRF 融合权重对组件强度敏感 —— 弱 lexical + 强 dense 直接融合
-> 反而会退化,需用 reranker 或重调权重纠正。
+> **0.930**(+62 个百分点)。端到端 F1 从 **0.085 提升到 0.434**(×5),体现了检索与
+> 生成升级的乘性效应。并发现 RRF 融合权重对组件强度敏感 —— 弱 lexical + 强 dense
+> 直接融合反而会退化,需用 reranker 或重调权重纠正。
 
 ---
 
@@ -126,11 +171,19 @@ KMP_DUPLICATE_LIB_OK=TRUE PYTHONPATH=src python3 scripts/run_hotpotqa_real_ablat
   --slice data/processed/hotpotqa/dev_slice_rerank100.jsonl \
   --device mps --top-ks 5,10 --format markdown \
   --output data/processed/hotpotqa/real_ablation_100_rerank.json
+
+# 端到端 EM/F1/Citation (20 样本, 4 配置, 需 Ollama 在跑)
+ollama serve &
+KMP_DUPLICATE_LIB_OK=TRUE PYTHONPATH=src python3 scripts/run_hotpotqa_e2e_benchmark.py \
+  --slice data/processed/hotpotqa/dev_slice_rerank100.jsonl \
+  --limit 20 --device mps --max-iterations 2 \
+  --output data/processed/hotpotqa/e2e_benchmark_20.json
 ```
 
 ## 下一步(已规划)
 
 1. 换更大的 `bge-m3` (2.3GB) 和 `bge-reranker-v2-m3` (2GB) 重跑,看是否还有提升空间
 2. 在 500 样本上跑完整 reranker 消融(预估 20~30 分钟)
-3. 接入 Ollama LLM(`gemma4:e2b`),在 retrieval 确定最优配置后跑端到端 EM/F1 benchmark
-4. 加 MuSiQue 数据集,做跨数据集对比(3-hop / 4-hop 子集)
+3. 扩大 E2E benchmark 到 100~200 样本,给 F1/EM 更稳定的置信区间
+4. 评测时剥离 citation markers,让 EM 公平反映 LLM 质量(当前 EM=0 是格式问题)
+5. 加 MuSiQue 数据集,做跨数据集对比(3-hop / 4-hop 子集)
