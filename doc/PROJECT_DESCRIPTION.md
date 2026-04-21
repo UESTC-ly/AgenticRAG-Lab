@@ -11,11 +11,13 @@
 - 能在回答前自检证据是否充分
 - 能把系统能力做成一个可运行、可演示、可评测的本地 MVP 产品
 
-当前仓库已经从最初的 benchmark demo 演进为一个**本地可运行的产品原型**：
+当前仓库已经从最初的 benchmark demo 演进为一个**本地可运行、接入真实模型栈的产品原型**:
 
-- 底层有可解释的 Agentic RAG 主链路
-- 中间有 HotpotQA 数据接入与检索评测
-- 上层有浏览器工作台、API、多知识库、自定义文档导入、历史记录和本地运行日志
+- 底层有可解释的 Agentic RAG 主链路(手写状态机)
+- 检索层同时保留规则版 baseline 与真实模型实现 —— `sentence-transformers` (bge-small) dense + `bge-reranker-base` cross-encoder 精排
+- 生成层有 `LLMSynthesizer` 通过本地 Ollama 调用 `gemma4:e2b`,并带规则版降级
+- 评测层有 HotpotQA 500 样本完整消融(retrieval `all_hit@5`: 0.302 → 0.930)+ 20 样本端到端(F1: 0.085 → 0.434)
+- 产品层有浏览器工作台、API、多知识库、自定义文档导入、历史记录和本地运行日志
 
 一句话概括：
 
@@ -400,33 +402,27 @@ HotpotQAMVPService
 
 ## 10. 当前最大的短板
 
-虽然产品原型已经成立，但短板依然很明确。
+虽然真实模型栈(bge-small embedding + bge-reranker-base + Ollama LLM)已经落地,`all_supporting_docs_hit_rate@5` 从 0.302 推到 0.930,端到端 F1 从 0.085 推到 0.434,短板也随之转移。
 
-### 10.1 检索能力还不够真实
+### 10.1 Planner / Critic 仍偏启发式
 
-当前仍然是轻量 proxy，而不是：
+当前规则能跑,但对复杂 comparison、深度 bridge 问题覆盖有限。接口已稳定(`plan()`、`evaluate()`),换 LLM 版是局部动作。这是当前最大的债。
 
-- 真实 BM25
-- 真实 dense embedding
-- 真实 reranker
+### 10.2 端到端 benchmark 规模偏小
 
-这会限制：
+retrieval 层在 500 样本上 benchmark 扎实,但 E2E 因为 LLM 慢只跑了 20 条,F1 = 0.434 的置信区间偏大,需要扩到 100~200。
 
-- 指标上限
-- 多跳召回质量
-- 产品可信度
+### 10.3 EM 评测没剥离 citation markers
 
-### 10.2 planner / critic 仍偏启发式
+LLM 输出带 `[1][2]` 后缀,tokenize 后不等于参考答案,EM 被人为压低。这是评测脚本的债,修起来很快。
 
-当前规则足够让系统跑起来，但不够稳定，也不够泛化。
+### 10.4 RRF 融合权重硬编码
 
-### 10.3 synthesis 仍偏轻量
+在真实 embedding 下发现 `hybrid-bge` 反而低于 `semantic-bge`(RRF 退化问题)。已通过接入 reranker 绕过,但根因 —— 权重对组件强度敏感 —— 还没根治。理想是做 query-level 或组件-强度 adaptive 的 weighting。
 
-当前已修复一部分 comparison / yes-no 问题，但复杂问题的答案合成仍然可能偏脆弱。
+### 10.5 观测能力还不完整
 
-### 10.4 观测能力还不完整
-
-当前的本地运行日志已经能用，但还没有：
+当前的本地运行日志能用,但还没有:
 
 - trace 可视化平台
 - token / latency / model usage 追踪
@@ -436,88 +432,92 @@ HotpotQAMVPService
 
 ## 11. 下一步路线图
 
-如果继续推进，建议按下面顺序补齐短板。
+如果继续推进,建议按下面顺序补齐短板。
 
-### Phase A：补真实检索层
+### Phase A：补真实检索层(已完成)
 
-优先级最高。
+已实现:
 
-目标：
-
-- 接真实 BM25
-- 接真实 dense embedding
-- 接 reranker
-- 重跑 HotpotQA 指标
+- ✅ `EmbeddingSemanticRetriever` 接入 `sentence-transformers` + `BAAI/bge-small-en-v1.5`
+- ✅ `CrossEncoderReranker` 接入 `BAAI/bge-reranker-base`
+- ✅ `LLMSynthesizer` 通过本地 Ollama 调用 `gemma4:e2b`
+- ✅ 三者均支持独立降级,测试通过 fake-model 注入保持 CI 无 GPU 也能跑
+- ✅ HotpotQA 500 样本重跑 ablation,`all_supporting_docs_hit_rate@5` **0.302 → 0.930**
 
 ### Phase B：补更强的 planner / critic
 
-目标：
+目标:
 
 - 用真实 LLM 替换 rule-based planner
 - 用更强的 critic 做证据充分性判断
 - 降低 comparison / bridge 问题失败率
 
-### Phase C：补观测
+### Phase C：扩大端到端评测
 
-目标：
+目标:
+
+- E2E benchmark 从当前 20 样本扩到 100~200
+- 评测脚本剥离 citation markers 让 EM 公平
+- 接入更大的 `bge-m3` + `bge-reranker-v2-m3` 作为正式版数字
+
+### Phase D：补观测
+
+目标:
 
 - 接 Langfuse
 - 对接本地运行日志
 - 建立更清晰的 trace 页面或调试面板
 
-### Phase D：补产品体验
+### Phase E：补产品体验
 
-目标：
+目标:
 
 - 多会话
 - 更清晰的知识库切换
 - 更好的文档导入体验
 - 更好的结果展示与错误反馈
 
-### Phase E：补更多 benchmark
+### Phase F：补更多 benchmark
 
-目标：
+目标:
 
-- MuSiQue
+- MuSiQue(特别是 2-hop / 3-hop / 4-hop 分层分析)
 - 2Wiki
 - 更完整的 case analysis
 
 ---
 
-## 12. 这个项目在校招里的价值
+## 12. 项目定位与边界
 
-这个项目已经足够支撑一段比较强的校招项目经历。
+这个项目的价值不在于"规模特别大",而在于它具备完整链条:
 
-它的价值不在于“规模特别大”，而在于它具备完整链条：
+- 有问题定义(多跳问答的失败模式)
+- 有系统设计(手写状态机,每一跳可解释)
+- 有真实模型栈(bge-small + bge-reranker-base + Ollama)
+- 有 benchmark(500 样本 retrieval + 20 样本 E2E,含 6 配置 ablation)
+- 有产品原型(Web UI + 多知识库 + 文档导入)
+- 有测试(49 个单元测试,fake-model 注入保证无 GPU 也能跑)
+- 有可解释的工程结构(主循环手写,组件可独立替换)
 
-- 有问题定义
-- 有系统设计
-- 有核心算法/检索逻辑
-- 有 benchmark
-- 有产品原型
-- 有测试
-- 有可解释的工程结构
+它更适合被描述为:
 
-它更适合被描述为：
+> 一个完成度较高的 Agentic RAG 项目,从 benchmark demo 推进到了带真实模型栈的可用产品原型,并在 HotpotQA 上完成完整消融评测。
 
-> 一个完成度较高的个人 Agentic RAG 项目，从 benchmark demo 推进到了可用产品原型。
-
-而不是：
+而不是:
 
 > 一个企业级生产平台。
 
-这个边界要讲清楚，反而会更显得可信。
+这个边界讲清楚,反而会更显得可信。
 
 ---
 
 ## 13. 当前一句话结论
 
-`AgenticRAG-Lab` 现在已经不是“做了个 RAG demo”，而是：
+`AgenticRAG-Lab` 现在是:
 
-> 一个已经打通 **数据接入 → 检索评测 → Agentic RAG 主链路 → 本地可用产品工作台** 的 Agentic RAG 项目原型。
+> 一个已经打通 **数据接入 → 检索评测(真实 BM25 + dense + reranker) → Agentic RAG 主链路 → LLM 生成 → 本地可用产品工作台** 的 Agentic RAG 项目,并在 HotpotQA 上完成 6 配置 retrieval ablation + 4 配置端到端 benchmark。
 
-它已经足够作为校招中的主项目之一；  
-如果继续推进，下一步最值得投入的方向仍然是：
+下一步最值得投入的方向:
 
-> 把当前轻量检索层升级成真实的 `BM25 + dense + reranker`，这是对项目质量提升最大的短板。
+> 把 Planner / Critic 从规则版换成 LLM 版,并扩大端到端评测规模 —— retrieval 已经不是瓶颈,生成端和评测可信度才是。
 

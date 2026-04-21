@@ -365,7 +365,7 @@ A: 是。包没装到 site-packages,用 src-layout 让 import 找得到 `agentic
 A: `mvp.py` 是 service 层(业务逻辑、存储);`web.py` 是 HTTP 层(路由、HTML)。分层是为了以后换 FastAPI 只动 `web.py`。
 
 **Q: `semantic.py` 没有真 embedding,怎么还叫 semantic?**
-A: 它是「离线代理」—— 用 token 扩展 + 词形近似模拟语义相似,零依赖。真实场景会换成 bge-m3 之类。契约不变,所以换起来很便宜。
+A: 它是「离线代理 baseline」—— 用 token 扩展 + 词形近似模拟语义相似,零依赖。**真实版在 `embedding_semantic.py`**,基于 `sentence-transformers` + `bge-small-en-v1.5`。两者并存,共享 `.search(query, top_k) -> list[EvidenceItem]` 契约,通过 `build_demo_agent()` vs `build_real_agent()` 选择。
 
 **Q: HotpotQA 数据在哪?**
 A: 首次跑 `scripts/prepare_hotpotqa_slice.py` 会下载到 `data/raw/hotpotqa/`,切片输出到 `data/processed/hotpotqa/`。两个目录都 gitignore。
@@ -376,11 +376,13 @@ A: 首次跑 `scripts/prepare_hotpotqa_slice.py` 会下载到 `data/raw/hotpotqa
 
 按 README 的 **Next Steps** 推进:
 
-1. `LexicalRetriever` → 真 BM25(`rank_bm25`)
-2. `SemanticRetriever` → 真 dense embedding
-3. 加 reranker 适配层
-4. 运行日志 → Langfuse 观测
-5. 更多 benchmark: MuSiQue、2WikiMultihopQA
-6. 更强的 synthesis / critic(LLM 替换)
+1. ✅ **已完成**: `SemanticRetriever` → 真 dense embedding (`embedding_semantic.py`, bge-small)
+2. ✅ **已完成**: reranker 适配层 (`reranker.py`, bge-reranker-base)
+3. ✅ **已完成**: LLM Synthesizer (`llm_synthesizer.py`, 本地 Ollama)
+4. 进行中: 扩大端到端 benchmark 规模(当前 20 样本 → 目标 100+)
+5. 待做: `LexicalRetriever` → 真 BM25(`rank_bm25`)
+6. 待做: 更多 benchmark: MuSiQue、2WikiMultihopQA
+7. 待做: 更强的 planner / critic(LLM 替换)
+8. 待做: 运行日志 → Langfuse 观测
 
 每一步都是「替换一个 stub,不改主循环」—— 这就是这个项目架构的**最大好处**。
