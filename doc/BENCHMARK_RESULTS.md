@@ -2,6 +2,7 @@
 
 > 在 HotpotQA dev_distractor 切片上对比「规则版」与「真实模型」两套 retrieval 栈。
 > 硬件: Apple Silicon + MPS;模型: `bge-small-en-v1.5` (133MB) + `bge-reranker-base` (280MB)。
+> 注：本页记录的是一组已完成的 benchmark 配置,不等于当前源码默认参数。当前源码默认 real path 为 `BAAI/bge-m3` + `BAAI/bge-reranker-v2-m3` + `qwen2.5:7b`。
 
 ---
 
@@ -133,7 +134,7 @@ Baseline `hybrid-rule @5` 的 all-hit **0.302** → `semantic-bge @5` 的 **0.79
 
 ### 4. @10 的 all-hit 逼近 1.0
 
-`hybrid-bge-rerank @10` 已经 **0.990**,意味着 500 条多跳题里,几乎每题都能把所有金证据召回。**retrieval 基本不再是瓶颈,下游瓶颈转移到 LLM synthesis**。
+`hybrid-bge-rerank @10` 已经 **0.990**,意味着**在 100 条 reranker 验证样本里**几乎每题都能把所有金证据召回。**在这组验证里 retrieval 基本不再是瓶颈,下游瓶颈转移到 LLM synthesis**。
 
 **可讲**:
 > @10 的 all-hit 接近 100%,说明后续提升空间已经从检索转到生成。下一步做 LLM synthesizer 优化会是更高 ROI。
@@ -149,7 +150,7 @@ E2E F1 从 0.085(全 rule)到 0.434(全 real);单独升 retrieval 只 +0.015,单
 
 ## 简历一句话版本
 
-> 在 HotpotQA dev 500 样本上完整消融 BM25 / bge-small / bge-reranker-base 三段式
+> 在 HotpotQA dev 500 / 100 样本上完整消融 lexical(BM25-like) / bge-small / bge-reranker-base 三段式
 > retrieval;`all_supporting_docs_hit_rate@5` 从 **0.302** 的规则版 baseline 提升到
 > **0.930**(+62 个百分点)。端到端 F1 从 **0.085 提升到 0.434**(×5),体现了检索与
 > 生成升级的乘性效应。并发现 RRF 融合权重对组件强度敏感 —— 弱 lexical + 强 dense

@@ -60,7 +60,7 @@ src/agentic_rag_lab/
     runner.py                 # benchmark aggregation
     hotpotqa.py               # retrieval baseline / ablation
   demo.py                     # demo corpus + build_demo_agent / build_real_agent
-tests/                        # 48 offline unit tests (fake-model injection, zero GPU needed)
+tests/                        # 51 offline unit tests (fake-model injection, zero GPU needed)
 scripts/                      # data prep / baseline / ablation helpers
 ```
 
@@ -94,6 +94,8 @@ KMP_DUPLICATE_LIB_OK=TRUE PYTHONPATH=src python3 scripts/run_hotpotqa_real_ablat
   --device mps --top-ks 1,3,5,10 --format markdown
 ```
 
+> 注：当前源码默认的 real-model 组合是 `BAAI/bge-m3`、`BAAI/bge-reranker-v2-m3`、`qwen2.5:7b`；上面的 `gemma4:e2b` 只是可选示例配置。
+
 ## Current Scope
 
 已实现：
@@ -101,23 +103,26 @@ KMP_DUPLICATE_LIB_OK=TRUE PYTHONPATH=src python3 scripts/run_hotpotqa_real_ablat
 - 手写 `AgenticRAG` 主循环
 - 离线 `Router / Planner / Critic / Synthesizer`
 - 轻量 hybrid retrieval(无外部依赖,作为 baseline)
-- **真实 dense retrieval**: `EmbeddingSemanticRetriever` + `sentence-transformers`(bge-small / bge-m3)
-- **真实 reranker**: `CrossEncoderReranker`(bge-reranker-base / bge-reranker-v2-m3)
-- **真实 LLM synthesizer**: `LLMSynthesizer` 通过 Ollama 调用本地模型(gemma4:e2b / qwen2.5:7b),带 citation 白名单校验与规则版自动降级
+- **真实 dense retrieval**: `EmbeddingSemanticRetriever` + `sentence-transformers`(源码默认 `BAAI/bge-m3`; benchmark 文档收录 `bge-small-en-v1.5` 实验)
+- **真实 reranker**: `CrossEncoderReranker`(源码默认 `BAAI/bge-reranker-v2-m3`; benchmark 文档收录 `bge-reranker-base` 实验)
+- **真实 LLM synthesizer**: `LLMSynthesizer` 通过 Ollama 调用本地模型(源码默认 `qwen2.5:7b`,也可切换到 `gemma4:e2b`),带 citation 提取校验与规则版自动降级
 - HotpotQA `dev_distractor` 500 条切片接入
 - benchmark runner(EM / F1 / citation rate / latency)
 - HotpotQA retrieval baseline / ablation(含真实模型 6 配置对比,见 `doc/BENCHMARK_RESULTS.md`)
+- 端到端 EM / F1 / Citation benchmark(当前文档收录 20 样本结果)
 - 基于 HotpotQA slice 的本地 MVP Web 应用
 - 自定义知识库文档持久化、检索调试、历史记录与浏览器工作台
 
 暂未实现:
 
 - MuSiQue / 2Wiki 等更多数据集 ingestion
-- 端到端 EM / F1 benchmark 接入 LLM synthesizer(目前仅 retrieval 阶段有真实模型评测)
+- 更大规模的端到端 benchmark 与更稳定的置信区间
 - Langfuse tracing
 - RAGAS 指标
 
 ## Benchmark 核心结果
+
+> 注：以下数字来自已完成的特定实验配置，不等于当前 CLI 默认模型组合；默认 real-model 参数见上文说明。
 
 **Retrieval** (HotpotQA dev, `all_supporting_docs_hit_rate@5`):
 
@@ -219,7 +224,7 @@ http://127.0.0.1:8000
 ## Next Steps
 
 1. 换更大的 `bge-m3` (2.3GB) + `bge-reranker-v2-m3` (2GB) 重跑 500 样本消融,作为正式数字
-2. 接入 `gemma4:e2b` / `qwen2.5:7b` 到 synthesizer,跑端到端 EM / F1 / citation rate
+2. 扩大端到端 benchmark 样本,并统一默认模型与 benchmark 配置说明
 3. 加入 MuSiQue(2-hop / 3-hop / 4-hop 分层)做跨数据集验证
 4. 重调 hybrid 的 RRF 权重 —— 真实 embedding 下 `semantic-bge > hybrid-bge`,融合需要重新 tune
 5. `LexicalRetriever` 升级为真正的 `rank_bm25` / `Tantivy`

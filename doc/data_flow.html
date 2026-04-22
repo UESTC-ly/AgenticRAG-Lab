@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AgenticRAG-Lab — 完整数据链路</title>
+<style>
+  :root {
+    --bg: #0f1419;
+    --panel: #1a2028;
+    --panel-2: #232b36;
+    --border: #2d3843;
+    --text: #e6e8eb;
+    --text-dim: #8b95a1;
+    --accent: #58a6ff;
+    --accent-2: #a5d6ff;
+    --success: #3fb950;
+    --warn: #d29922;
+    --danger: #f85149;
+    --purple: #bc8cff;
+    --mono: "SF Mono", Menlo, Consolas, monospace;
+  }
+
+  * { box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+    line-height: 1.55;
+    padding: 40px 24px;
+  }
+
+  .wrap { max-width: 1200px; margin: 0 auto; }
+
+  h1 { margin: 0 0 8px; font-size: 28px; }
+  h1 span { color: var(--accent); }
+
+  .subtitle {
+    color: var(--text-dim);
+    margin-bottom: 24px;
+    font-size: 14px;
+  }
+
+  .legend {
+    display: flex;
+    gap: 18px;
+    flex-wrap: wrap;
+    padding: 14px 18px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 18px;
+    font-size: 13px;
+  }
+
+  .legend .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+
+  .dot.rule { background: var(--accent); }
+  .dot.real { background: var(--purple); }
+  .dot.data { background: var(--success); }
+  .dot.event { background: var(--warn); }
+
+  .toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding: 14px 18px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 36px;
+  }
+
+  .toolbar-left, .toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .toolbar-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-dim);
+  }
+
+  .segmented {
+    display: inline-flex;
+    background: #0d1117;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 4px;
+    gap: 4px;
+  }
+
+  .segmented button,
+  .ghost-button {
+    border: 0;
+    cursor: pointer;
+    font-size: 12px;
+    border-radius: 6px;
+    transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease, border-color 0.18s ease;
+  }
+
+  .segmented button {
+    background: transparent;
+    color: var(--text-dim);
+    padding: 7px 12px;
+  }
+
+  .segmented button.active {
+    background: rgba(88, 166, 255, 0.16);
+    color: var(--accent-2);
+  }
+
+  .ghost-button {
+    padding: 8px 12px;
+    background: var(--panel-2);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+
+  .ghost-button:hover,
+  .segmented button:hover,
+  .focusable:hover {
+    transform: translateY(-1px);
+  }
+
+  .status-pill {
+    padding: 8px 12px;
+    background: #0d1117;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+
+  .status-pill strong { color: var(--accent-2); }
+
+  .stage {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin: 0 auto;
+    max-width: 760px;
+    position: relative;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease, transform 0.2s ease;
+  }
+
+  .stage.center { text-align: center; }
+
+  .stage .label {
+    font-family: var(--mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-dim);
+  }
+
+  .stage h3 { margin: 4px 0 8px; font-size: 17px; }
+
+  .stage .file {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--accent-2);
+  }
+
+  .stage .desc {
+    color: var(--text-dim);
+    font-size: 13px;
+    margin-top: 8px;
+  }
+
+  .arrow {
+    text-align: center;
+    position: relative;
+    margin: 0 auto;
+    max-width: 760px;
+    padding: 6px 0;
+  }
+
+  .arrow::before {
+    content: "";
+    display: block;
+    width: 2px;
+    height: 36px;
+    background: var(--border);
+    margin: 0 auto;
+  }
+
+  .arrow .tag {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    background: var(--panel-2);
+    color: var(--success);
+    padding: 3px 10px;
+    border-radius: 4px;
+    font-family: var(--mono);
+    font-size: 11px;
+    border: 1px solid var(--border);
+    white-space: nowrap;
+  }
+
+  .branches {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    max-width: 960px;
+    margin: 0 auto;
+  }
+
+  .branches .stage { max-width: none; }
+
+  .sub-row {
+    display: flex;
+    gap: 10px;
+    margin-top: 12px;
+    flex-wrap: wrap;
+  }
+
+  .sub {
+    flex: 1;
+    min-width: 180px;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 12px;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease, transform 0.2s ease;
+  }
+
+  .sub h4 {
+    margin: 0 0 4px;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .sub .file { font-size: 11px; }
+  .sub p { margin: 4px 0 0; font-size: 12px; color: var(--text-dim); }
+
+  .badge-rule { color: var(--accent); font-size: 10px; }
+  .badge-real { color: var(--purple); font-size: 10px; }
+
+  .section-title {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin: 40px auto 14px;
+    max-width: 760px;
+  }
+
+  .loop {
+    border: 1.5px dashed var(--warn);
+    border-radius: 14px;
+    padding: 24px;
+    max-width: 820px;
+    margin: 8px auto;
+    position: relative;
+  }
+
+  .loop::before {
+    content: "Executor Loop (max_iterations = 3)";
+    position: absolute;
+    top: -10px;
+    left: 24px;
+    background: var(--bg);
+    color: var(--warn);
+    padding: 0 8px;
+    font-size: 11px;
+    font-family: var(--mono);
+  }
+
+  code.type {
+    background: #0d1117;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--accent-2);
+    border: 1px solid var(--border);
+  }
+
+  .result {
+    background: linear-gradient(135deg, #1a4025 0%, #1a2028 100%);
+    border: 1px solid var(--success);
+  }
+
+  .result h3 { color: var(--success); }
+
+  .note {
+    margin: 40px auto;
+    max-width: 760px;
+    padding: 14px 18px;
+    background: var(--panel);
+    border-left: 3px solid var(--accent);
+    border-radius: 4px;
+    font-size: 13px;
+    color: var(--text-dim);
+  }
+
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 260px;
+    gap: 24px;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  .trace-panel {
+    position: sticky;
+    top: 24px;
+    align-self: start;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    font-size: 12px;
+  }
+
+  .trace-panel h4 {
+    margin: 0 0 10px;
+    font-size: 12px;
+    color: var(--warn);
+    font-family: var(--mono);
+    text-transform: uppercase;
+  }
+
+  .trace-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .trace-list li {
+    padding: 8px 10px;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    font-family: var(--mono);
+    font-size: 11px;
+    transition: border-color 0.18s ease, background 0.18s ease, opacity 0.18s ease, transform 0.18s ease;
+  }
+
+  .trace-list li + li { margin-top: 6px; }
+
+  .trace-list .stage-name { color: var(--warn); }
+
+  .focusable {
+    cursor: pointer;
+  }
+
+  .focusable.selected,
+  .trace-list li.selected {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(88, 166, 255, 0.18);
+    background: rgba(88, 166, 255, 0.08);
+  }
+
+  .focusable.dimmed,
+  .trace-list li.dimmed {
+    opacity: 0.28;
+  }
+
+  .filter-hidden {
+    display: none !important;
+  }
+
+  .variant-pill {
+    display: inline-block;
+    margin-left: 8px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: #0d1117;
+    border: 1px solid var(--border);
+    font-size: 10px;
+    color: var(--text-dim);
+    vertical-align: middle;
+  }
+
+  @media (max-width: 900px) {
+    .two-col { grid-template-columns: 1fr; }
+    .trace-panel { position: static; }
+    .branches { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>AgenticRAG-Lab <span>完整数据链路</span></h1>
+  <p class="subtitle">从用户查询到带 citation 的答案，经过的每一层、传递的每种数据类型，一张图看完。点击任意节点可高亮相关链路；右侧 Trace 会同步联动。</p>
+
+  <div class="legend">
+    <span class="chip"><span class="dot rule"></span> 规则版 baseline（离线）</span>
+    <span class="chip"><span class="dot real"></span> 真实模型版（需 sentence-transformers + Ollama）</span>
+    <span class="chip"><span class="dot data"></span> 数据契约（dataclass）</span>
+    <span class="chip"><span class="dot event"></span> TraceEvent（可观测）</span>
+  </div>
+
+  <div class="toolbar">
+    <div class="toolbar-left">
+      <span class="toolbar-label">Path Filter</span>
+      <div class="segmented" role="tablist" aria-label="Path filter">
+        <button type="button" class="active" data-mode="all">全部</button>
+        <button type="button" data-mode="rule">Rule</button>
+        <button type="button" data-mode="real">Real</button>
+      </div>
+      <button type="button" class="ghost-button" id="clearFocus">清除高亮</button>
+    </div>
+    <div class="toolbar-right">
+      <span class="status-pill">当前视图：<strong id="modeLabel">全部</strong></span>
+      <span class="status-pill">当前焦点：<strong id="focusLabel">无</strong></span>
+    </div>
+  </div>
+
+  <div class="two-col">
+    <div>
+      <div class="section-title">① 用户输入</div>
+      <div class="stage center focusable" data-focus="query" data-trace-stage="" data-variant="both">
+        <div class="label">user query</div>
+        <h3>"Which university did the author of The Hobbit attend before becoming a professor?"</h3>
+        <div class="desc">自然语言字符串进入 <span class="file">src/agentic_rag_lab/agent.py::AgenticRAG.run(query)</span></div>
+      </div>
+
+      <div class="arrow"><span class="tag">str</span></div>
+
+      <div class="section-title">② 路由决策</div>
+      <div class="stage focusable" data-focus="router" data-trace-stage="router" data-variant="both">
+        <div class="label">Stage · Router</div>
+        <h3>Router</h3>
+        <div class="file">src/agentic_rag_lab/router.py :: Router.route(query)</div>
+        <div class="desc">基于关键词命中与正则的启发式规则。<em>刻意保留规则版是工程判断力：简单二分类不值得用 LLM。</em></div>
+      </div>
+
+      <div class="arrow"><span class="tag">RouteDecision { target, needs_planning, rationale }</span></div>
+
+      <div class="branches">
+        <div class="stage focusable" data-focus="direct_answer" data-trace-stage="" data-variant="both">
+          <div class="label">Branch · 1</div>
+          <h3>DIRECT_ANSWER</h3>
+          <div class="desc">"What is RAG?" 这类定义题 → <span class="file">synthesizer.direct_answer()</span> 直接出结果，不走检索。</div>
+        </div>
+        <div class="stage focusable" data-focus="calculator" data-trace-stage="" data-variant="both">
+          <div class="label">Branch · 2</div>
+          <h3>CALCULATOR</h3>
+          <div class="desc">"what is 12 * 7" → <span class="file">_safe_calculate()</span>，用 <code class="type">ast.parse</code> 安全执行，不用 <code class="type">eval</code>。</div>
+        </div>
+        <div class="stage focusable selected" data-focus="agentic_rag" data-trace-stage="" data-variant="both">
+          <div class="label">Branch · 3 ★</div>
+          <h3>AGENTIC_RAG</h3>
+          <div class="desc">复杂问题走这条。后续所有流程都在这一分支里。</div>
+        </div>
+      </div>
+
+      <div class="arrow"><span class="tag">→ 继续 AGENTIC_RAG 分支</span></div>
+
+      <div class="section-title">③ 查询拆解</div>
+      <div class="stage focusable" data-focus="planner" data-trace-stage="planner" data-variant="both">
+        <div class="label">Stage · Planner</div>
+        <h3>RuleBasedPlanner</h3>
+        <div class="file">src/agentic_rag_lab/planner.py :: plan(query)</div>
+        <div class="desc">
+          启发式拆句。示例查询被拆成：<br>
+          <code class="type">step_1</code> "Who is the author of The Hobbit?"<br>
+          <code class="type">step_2</code> 原始查询本身（在 bridge entity 已知后找学校）<br>
+          <em>真实版可以换 LLM 拆分，当前是规则 stub。</em>
+        </div>
+      </div>
+
+      <div class="arrow"><span class="tag">QueryPlan { steps: [PlanStep, ...] }</span></div>
+
+      <div class="section-title">④ 执行循环（核心）</div>
+      <div class="loop">
+        <div class="stage focusable" data-focus="init" data-trace-stage="" data-variant="both">
+          <div class="label">Init</div>
+          <h3>active_queries ← plan.steps 的 query 列表</h3>
+          <div class="desc"><code class="type">evidence_pool: dict[doc_id → EvidenceItem]</code> 初始化为空。</div>
+        </div>
+
+        <div class="arrow"><span class="tag">for iteration in 1..max_iterations</span></div>
+
+        <div class="stage focusable" data-focus="retriever" data-trace-stage="retriever" data-variant="both">
+          <div class="label">Stage · Retriever</div>
+          <h3>HybridRetriever</h3>
+          <div class="file">src/agentic_rag_lab/retrieval/hybrid.py</div>
+          <div class="desc">对每条 sub_query，召回 <code class="type">top_k=5</code>，按 <code class="type">doc_id</code> 去重合并进 evidence_pool（保留更高分）。</div>
+
+          <div class="sub-row">
+            <div class="sub focusable" data-focus="retriever lexical" data-trace-stage="retriever" data-variant="both">
+              <h4>Lexical <span class="variant-pill">both</span></h4>
+              <div class="file">retrieval/lexical.py</div>
+              <p>BM25-like 词频打分，<code class="type">top_k×2</code> 召回（有 reranker 时扩成更大候选池）。</p>
+            </div>
+            <div class="sub focusable" data-focus="retriever semantic" data-trace-stage="retriever" data-variant="rule">
+              <h4>Semantic <span class="badge-rule">rule</span></h4>
+              <div class="file">retrieval/semantic.py</div>
+              <p>离线代理 baseline：token 扩展 + cosine-like，相当于“轻量伪语义检索”。</p>
+            </div>
+            <div class="sub focusable" data-focus="retriever semantic" data-trace-stage="retriever" data-variant="real">
+              <h4>Embedding Semantic <span class="badge-real">real</span></h4>
+              <div class="file">retrieval/embedding_semantic.py</div>
+              <p>真实 dense retrieval：源码默认 <b>BAAI/bge-m3</b>；benchmark 文档另收录 <b>bge-small-en-v1.5</b> 实验。文档 embedding 会先预计算，再做向量相似度。</p>
+            </div>
+            <div class="sub focusable" data-focus="retriever rrf" data-trace-stage="retriever" data-variant="both">
+              <h4>RRF Fusion <span class="variant-pill">both</span></h4>
+              <div class="file">text.py :: reciprocal_rank_fusion</div>
+              <p><code class="type">1 / (60 + rank)</code>，用名次融合 lexical / semantic 两路结果，避免直接比较不同分数量纲。</p>
+            </div>
+            <div class="sub focusable" data-focus="retriever rerank" data-trace-stage="retriever" data-variant="rule">
+              <h4>Light Rerank <span class="badge-rule">rule</span></h4>
+              <div class="file">retrieval/hybrid.py</div>
+              <p>规则版不接真实 reranker，而是用 token overlap bonus 做轻量重排。</p>
+            </div>
+            <div class="sub focusable" data-focus="retriever rerank" data-trace-stage="retriever" data-variant="real">
+              <h4>Cross-Encoder Rerank <span class="badge-real">real</span></h4>
+              <div class="file">retrieval/reranker.py</div>
+              <p>真实版用 cross-encoder 对候选做精排；源码默认 <b>BAAI/bge-reranker-v2-m3</b>，benchmark 文档另收录 <b>bge-reranker-base</b> 实验。</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="arrow"><span class="tag">list[EvidenceItem] → 合并进 evidence_pool</span></div>
+
+        <div class="stage focusable" data-focus="critic" data-trace-stage="critic" data-variant="both">
+          <div class="label">Stage · Critic</div>
+          <h3>EvidenceCritic</h3>
+          <div class="file">src/agentic_rag_lab/critic.py :: evaluate(query, evidence)</div>
+          <div class="desc">判断证据是否充足。当前实现主要看 query token 覆盖率 + 教育/作者/国籍等领域信号；不足时产出 <code class="type">follow_up_queries</code>。</div>
+        </div>
+
+        <div class="arrow"><span class="tag">CritiqueResult { is_sufficient, follow_up_queries, confidence }</span></div>
+
+        <div class="stage focusable" data-focus="decision" data-trace-stage="" data-variant="both">
+          <div class="label">Decision</div>
+          <h3>sufficient? → 跳出循环 &nbsp;|&nbsp; not sufficient? → active_queries ← follow_up_queries</h3>
+          <div class="desc"><code class="type">max_iterations=3</code> 是硬上限，防止 critic 无限追问死循环。</div>
+        </div>
+      </div>
+
+      <div class="arrow"><span class="tag">evidence_pool.values() → list[EvidenceItem]</span></div>
+
+      <div class="section-title">⑤ 答案合成</div>
+      <div class="stage focusable" data-focus="synthesizer" data-trace-stage="synthesizer" data-variant="both">
+        <div class="label">Stage · Synthesizer</div>
+        <h3>Synthesizer</h3>
+        <div class="file">synthesizer.py（rule） · llm_synthesizer.py（real）</div>
+
+        <div class="sub-row">
+          <div class="sub focusable" data-focus="synthesizer citation" data-trace-stage="synthesizer" data-variant="rule">
+            <h4>CitationSynthesizer <span class="badge-rule">rule</span></h4>
+            <p>按 score 排序 → 抽高命中句子 → 拼接答案；yes/no 题和教育类问题有专门规则，并直接返回 doc_id citations。</p>
+          </div>
+          <div class="sub focusable" data-focus="synthesizer llm" data-trace-stage="synthesizer" data-variant="real">
+            <h4>LLMSynthesizer <span class="badge-real">real</span></h4>
+            <p>通过 Ollama 调本地模型；源码默认 <code class="type">qwen2.5:7b</code>，也可改成其他本地模型。先把证据编号为 <code class="type">[1][2]...</code>，再把模型输出里的编号反向映射回 doc_id，并做 citation 校验。</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="arrow"><span class="tag">tuple[str, list[str]] = (answer, citations)</span></div>
+
+      <div class="section-title">⑥ 最终返回</div>
+      <div class="stage result focusable" data-focus="result" data-trace-stage="" data-variant="both">
+        <div class="label">Output · RunResult</div>
+        <h3>RunResult { query, answer, citations, route, iterations, trace }</h3>
+        <div class="desc">
+          一次完整调用的最终产物。<br>
+          <b>answer</b>：如 "Exeter College, Oxford"<br>
+          <b>citations</b>：如 ["hobbit-author", "tolkien-oxford"]<br>
+          <b>iterations</b>：实际跑了几轮<br>
+          <b>trace</b>：<code class="type">list[TraceEvent]</code>，给调试 / Web UI / `trace` 子命令展示
+        </div>
+      </div>
+
+      <div class="note">
+        <b>为什么这个架构值得看？</b><br>
+        主循环（<code class="type">agent.py</code>）不关心任何组件实现，只关心数据契约。所以把规则版 semantic 换成真实 dense retriever，不需要改主循环；把规则版 synthesizer 换成 LLM 版，也只是构造函数里换实例。
+      </div>
+
+      <div class="note" style="border-left-color: var(--purple);">
+        <b>两条路径怎么走？</b><br>
+        · <b>离线路径</b>（<code class="type">build_demo_agent()</code>）：rule 组件拼起来，零依赖，可完全离线运行，用于开发 / CI / baseline。<br>
+        · <b>真实路径</b>（<code class="type">build_real_agent()</code>）：semantic / reranker / synthesizer 切到 real 组件，需要 <code class="type">sentence-transformers</code> + 本地 <code class="type">ollama serve</code>。<br>
+        · 任一真实组件失败都能独立降级，不会让整条 loop 挂掉。
+      </div>
+    </div>
+
+    <aside class="trace-panel">
+      <h4>📡 TraceEvent 时间线</h4>
+      <p style="color: var(--text-dim); font-size: 11px; margin: 0 0 10px;">
+        点击右侧 Trace 可反向高亮左侧阶段；点击左侧阶段也会联动到这里。
+      </p>
+      <ul class="trace-list">
+        <li class="focusable selected" data-focus="router" data-trace-stage="router" data-variant="both">
+          <span class="stage-name">router</span><br>
+          Detected multi-hop reasoning cues.
+        </li>
+        <li class="focusable" data-focus="planner" data-trace-stage="planner" data-variant="both">
+          <span class="stage-name">planner</span><br>
+          Generated 2 plan steps.
+        </li>
+        <li class="focusable" data-focus="retriever" data-trace-stage="retriever" data-variant="both">
+          <span class="stage-name">retriever</span><br>
+          Iteration 1 gathered 2 unique evidence items.
+        </li>
+        <li class="focusable" data-focus="critic" data-trace-stage="critic" data-variant="both">
+          <span class="stage-name">critic</span><br>
+          Iteration 1: Evidence includes education signals and enough semantic overlap.
+        </li>
+        <li class="focusable" data-focus="synthesizer" data-trace-stage="synthesizer" data-variant="both">
+          <span class="stage-name">synthesizer</span><br>
+          Answer with 2 citations.
+        </li>
+      </ul>
+    </aside>
+  </div>
+
+  <div class="note" style="max-width: 1100px; border-left-color: var(--success); margin-top: 40px;">
+    <b>想复现？</b>
+    <pre style="color: var(--text); font-family: var(--mono); font-size: 12px; background: #0d1117; padding: 12px; border-radius: 4px; overflow-x: auto; margin-top: 8px;">
+# 离线路径，立刻出结果
+PYTHONPATH=src python3 -m agentic_rag_lab trace \
+  "Which university did the author of The Hobbit attend before becoming a professor?"
+
+# 真实路径（需要先 ollama serve）
+PYTHONPATH=src python3 -m agentic_rag_lab trace --real \
+  "Which university did the author of The Hobbit attend before becoming a professor?"</pre>
+    现在这张图支持三种交互：<b>节点点击高亮</b>、<b>Trace 联动</b>、<b>Rule / Real 切换</b>。
+  </div>
+</div>
+
+<script>
+  (() => {
+    const state = {
+      mode: "all",
+      focus: null,
+    };
+
+    const modeButtons = [...document.querySelectorAll("[data-mode]")];
+    const focusables = [...document.querySelectorAll(".focusable[data-focus]")];
+    const modeLabel = document.getElementById("modeLabel");
+    const focusLabel = document.getElementById("focusLabel");
+    const clearFocusButton = document.getElementById("clearFocus");
+
+    const modeNames = {
+      all: "全部",
+      rule: "Rule",
+      real: "Real",
+    };
+
+    const focusNames = {
+      query: "用户输入",
+      router: "Router",
+      direct_answer: "DIRECT_ANSWER",
+      calculator: "CALCULATOR",
+      agentic_rag: "AGENTIC_RAG",
+      planner: "Planner",
+      init: "Loop Init",
+      retriever: "Retriever",
+      lexical: "Lexical",
+      semantic: "Semantic Retrieval",
+      rrf: "RRF Fusion",
+      rerank: "Rerank",
+      critic: "Critic",
+      decision: "Loop Decision",
+      synthesizer: "Synthesizer",
+      citation: "CitationSynthesizer",
+      llm: "LLMSynthesizer",
+      result: "RunResult",
+    };
+
+    function getVariant(el) {
+      return el.dataset.variant || "both";
+    }
+
+    function matchesMode(el) {
+      const variant = getVariant(el);
+      if (state.mode === "all") return true;
+      return variant === "both" || variant === state.mode;
+    }
+
+    function getFocusTokens(el) {
+      return (el.dataset.focus || "")
+        .split(/\s+/)
+        .map((token) => token.trim())
+        .filter(Boolean);
+    }
+
+    function matchesFocus(el) {
+      if (!state.focus) return true;
+      return getFocusTokens(el).includes(state.focus);
+    }
+
+    function updateModeButtons() {
+      modeButtons.forEach((button) => {
+        button.classList.toggle("active", button.dataset.mode === state.mode);
+      });
+      modeLabel.textContent = modeNames[state.mode];
+    }
+
+    function updateFocusLabel() {
+      focusLabel.textContent = state.focus ? (focusNames[state.focus] || state.focus) : "无";
+    }
+
+    function applyState() {
+      focusables.forEach((el) => {
+        const visible = matchesMode(el);
+        el.classList.toggle("filter-hidden", !visible);
+
+        if (!visible) {
+          el.classList.remove("selected", "dimmed");
+          return;
+        }
+
+        const selected = !!state.focus && matchesFocus(el);
+        const dimmed = !!state.focus && !selected;
+        el.classList.toggle("selected", selected);
+        el.classList.toggle("dimmed", dimmed);
+      });
+
+      updateModeButtons();
+      updateFocusLabel();
+    }
+
+    function setMode(mode) {
+      state.mode = mode;
+
+      if (state.focus) {
+        const stillVisible = focusables.some((el) => matchesMode(el) && matchesFocus(el));
+        if (!stillVisible) {
+          state.focus = null;
+        }
+      }
+
+      applyState();
+    }
+
+    function setFocus(token, sourceEl) {
+      state.focus = state.focus === token ? null : token;
+      applyState();
+
+      if (sourceEl && sourceEl.closest(".trace-panel") && state.focus) {
+        const target = document.querySelector(`.focusable[data-focus~="${token}"]:not(.trace-panel .focusable)`);
+        if (target && !target.classList.contains("filter-hidden")) {
+          target.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      }
+    }
+
+    modeButtons.forEach((button) => {
+      button.addEventListener("click", () => setMode(button.dataset.mode));
+    });
+
+    focusables.forEach((el) => {
+      el.addEventListener("click", () => {
+        const token = getFocusTokens(el)[0];
+        if (!token) return;
+        setFocus(token, el);
+      });
+    });
+
+    clearFocusButton.addEventListener("click", () => {
+      state.focus = null;
+      applyState();
+    });
+
+    applyState();
+  })();
+</script>
+</body>
+</html>
